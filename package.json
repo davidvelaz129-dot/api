@@ -1,5 +1,5 @@
 {
-  "name": "gamepass-api",
+  "name": "creator-gamepass-api",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
