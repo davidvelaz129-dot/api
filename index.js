@@ -84,7 +84,7 @@ async function fetchPlacesByUniverse(universeId) {
   }
 }
 
-// ✅ Función corregida: usar catálogo para gamepasses
+// ✅ Función depurada para obtener Gamepasses desde el catálogo
 async function fetchGamepassesByUniverse(universeId) {
   const headers = buildRobloxHeaders();
   const gamepasses = [];
@@ -95,7 +95,15 @@ async function fetchGamepassesByUniverse(universeId) {
     do {
       const url = `https://catalog.roblox.com/v1/search/items?category=GamePass&creatorType=Universe&creatorTargetId=${universeId}&limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
       console.log("Consultando Gamepasses en:", url);
-      const { data } = await axios.get(url, { headers });
+
+      const response = await axios.get(url, { headers });
+
+      if (response.status !== 200) {
+        console.warn(`Respuesta inesperada (${response.status}) para universo ${universeId}`);
+        break;
+      }
+
+      const data = response.data;
 
       if (Array.isArray(data.items)) {
         for (const item of data.items) {
@@ -112,7 +120,11 @@ async function fetchGamepassesByUniverse(universeId) {
       await delay(150);
     } while (cursor);
   } catch (err) {
-    console.error(`Error obteniendo gamepasses para universo ${universeId}:`, err.message);
+    if (err.response && err.response.status === 400) {
+      console.warn(`Universo ${universeId} no tiene Gamepasses o no está habilitado para catálogo.`);
+    } else {
+      console.error(`Error obteniendo gamepasses para universo ${universeId}:`, err.message);
+    }
   }
 
   return gamepasses;
