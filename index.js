@@ -84,47 +84,27 @@ async function fetchPlacesByUniverse(universeId) {
   }
 }
 
-// ✅ Función depurada para obtener Gamepasses desde el catálogo
+// ✅ Función corregida: obtener Gamepasses directamente de la experiencia
 async function fetchGamepassesByUniverse(universeId) {
   const headers = buildRobloxHeaders();
   const gamepasses = [];
-  let cursor = null;
-  let safetyCounter = 0;
 
   try {
-    do {
-      const url = `https://catalog.roblox.com/v1/search/items?category=GamePass&creatorType=Universe&creatorTargetId=${universeId}&limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
-      console.log("Consultando Gamepasses en:", url);
+    const url = `https://games.roblox.com/v1/game-passes?universeId=${universeId}&limit=100`;
+    console.log("Consultando Gamepasses en:", url);
 
-      const response = await axios.get(url, { headers });
+    const { data } = await axios.get(url, { headers });
 
-      if (response.status !== 200) {
-        console.warn(`Respuesta inesperada (${response.status}) para universo ${universeId}`);
-        break;
+    if (Array.isArray(data.data)) {
+      for (const item of data.data) {
+        gamepasses.push({
+          gamepassId: item.id,
+          gamepassName: item.name,
+        });
       }
-
-      const data = response.data;
-
-      if (Array.isArray(data.items)) {
-        for (const item of data.items) {
-          gamepasses.push({
-            gamepassId: item.id,
-            gamepassName: item.name,
-          });
-        }
-      }
-
-      cursor = data.nextPageCursor || null;
-      safetyCounter++;
-      if (safetyCounter > 20) break;
-      await delay(150);
-    } while (cursor);
-  } catch (err) {
-    if (err.response && err.response.status === 400) {
-      console.warn(`Universo ${universeId} no tiene Gamepasses o no está habilitado para catálogo.`);
-    } else {
-      console.error(`Error obteniendo gamepasses para universo ${universeId}:`, err.message);
     }
+  } catch (err) {
+    console.error(`Error obteniendo gamepasses para universo ${universeId}:`, err.message);
   }
 
   return gamepasses;
