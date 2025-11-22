@@ -1,0 +1,11 @@
+{
+  "name": "gamepass-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "express": "latest",
+    "node-fetch": "latest",
+    "cors": "latest"
+  }
+}
