@@ -6,32 +6,44 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Lista de gamepasses de tu juego
-const gamepasses = [
-  { Id: 123456, Name: "VIP" },
-  { Id: 234567, Name: "Servidor" },
-  { Id: 345678, Name: "OtroGamepass" }
-];
+app.get("/", (req, res) => res.send("Gamepass Creator API Running"));
 
-app.get("/", (req, res) => res.send("Gamepass API Running"));
-
-app.get("/all", async (req, res) => {
+// Endpoint para obtener todos los gamepasses creados por un jugador
+app.get("/creator-gamepasses", async (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: "Falta userId" });
 
-  const owned = [];
+  try {
+    // 1️⃣ Obtener los juegos creados por el usuario
+    const gamesUrl = `https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=100`;
+    const gamesData = await fetch(gamesUrl).then(r => r.json());
+    const games = gamesData.data || [];
 
-  for (const gp of gamepasses) {
-    try {
-      const url = `https://inventory.roblox.com/v1/users/${userId}/items/GamePass/${gp.Id}`;
-      const data = await fetch(url).then(r => r.json());
-      if (data?.data?.length > 0) owned.push({ Id: gp.Id, Name: gp.Name });
-    } catch (err) {
-      console.error(err);
+    const allGamepasses = [];
+
+    // 2️⃣ Para cada juego, obtener sus gamepasses
+    for (const game of games) {
+      const placeId = game.id;
+      const gpUrl = `https://games.roblox.com/v1/games/${placeId}/game-passes`;
+      const gpData = await fetch(gpUrl).then(r => r.json());
+      if (gpData.data) {
+        gpData.data.forEach(gp => {
+          allGamepasses.push({
+            gameId: placeId,
+            gameName: game.name,
+            gamepassId: gp.id,
+            gamepassName: gp.name
+          });
+        });
+      }
     }
-  }
 
-  res.json({ gamepasses: owned });
+    res.json({ gamepasses: allGamepasses });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al obtener gamepasses" });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
