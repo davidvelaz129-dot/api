@@ -6,30 +6,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-    res.send("Gamepass API Running");
-});
+// Lista de gamepasses de tu juego
+const gamepasses = [
+  { Id: 123456, Name: "VIP" },
+  { Id: 234567, Name: "Servidor" },
+  { Id: 345678, Name: "OtroGamepass" }
+];
 
-// Endpoint para verificar gamepass
-app.get("/check", async (req, res) => {
-    const userId = req.query.userId;
-    const gamepassId = req.query.gamepassId;
+app.get("/", (req, res) => res.send("Gamepass API Running"));
 
-    if (!userId || !gamepassId) {
-        return res.status(400).json({ error: "Faltan parámetros" });
-    }
+app.get("/all", async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ error: "Falta userId" });
 
+  const owned = [];
+
+  for (const gp of gamepasses) {
     try {
-        const url = `https://inventory.roblox.com/v1/users/${userId}/items/GamePass/${gamepassId}`;
-        const data = await fetch(url).then(r => r.json());
-
-        const owns = data?.data?.length > 0 || false;
-
-        return res.json({ owns });
+      const url = `https://inventory.roblox.com/v1/users/${userId}/items/GamePass/${gp.Id}`;
+      const data = await fetch(url).then(r => r.json());
+      if (data?.data?.length > 0) owned.push({ Id: gp.Id, Name: gp.Name });
     } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Error al verificar" });
+      console.error(err);
     }
+  }
+
+  res.json({ gamepasses: owned });
 });
 
 const PORT = process.env.PORT || 3000;
