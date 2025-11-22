@@ -6,6 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Endpoint principal
 app.get("/", (req, res) => res.send("Gamepass Creator API Running"));
 
 // Endpoint para obtener todos los gamepasses creados por un jugador
