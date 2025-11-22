@@ -6,11 +6,12 @@ const axios = require('axios');
 const app = express();
 app.use(cors());
 
-// Health check
+// Endpoint raíz de prueba
 app.get('/', (_req, res) => {
   res.json({ ok: true, message: 'API Roblox Gamepasses – listo para usar.' });
 });
 
+// Headers para llamadas a Roblox
 function buildRobloxHeaders() {
   const headers = {
     'User-Agent': 'Roblox-Gamepass-API/1.0',
@@ -24,6 +25,7 @@ function buildRobloxHeaders() {
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Obtener experiencias públicas de un usuario
 async function fetchPublicExperiencesByUser(userId) {
   const headers = buildRobloxHeaders();
   const experiences = [];
@@ -47,6 +49,7 @@ async function fetchPublicExperiencesByUser(userId) {
   return experiences;
 }
 
+// Obtener nombres de universos
 async function fetchUniverseNames(universeIds) {
   if (!Array.isArray(universeIds) || universeIds.length === 0) return {};
   const headers = buildRobloxHeaders();
@@ -65,6 +68,7 @@ async function fetchUniverseNames(universeIds) {
   return map;
 }
 
+// Obtener lugares de un universo
 async function fetchPlacesByUniverse(universeId) {
   const headers = buildRobloxHeaders();
   try {
@@ -80,28 +84,41 @@ async function fetchPlacesByUniverse(universeId) {
   }
 }
 
-// ✅ Función corregida
+// ✅ Función corregida: usar catálogo para gamepasses
 async function fetchGamepassesByUniverse(universeId) {
   const headers = buildRobloxHeaders();
   const gamepasses = [];
+  let cursor = null;
+  let safetyCounter = 0;
+
   try {
-    const url = `https://games.roblox.com/v1/game-pass/universe/${universeId}?limit=100`;
-    console.log("Consultando Gamepasses en:", url);
-    const { data } = await axios.get(url, { headers });
-    if (Array.isArray(data.data)) {
-      for (const item of data.data) {
-        gamepasses.push({
-          gamepassId: item.id,
-          gamepassName: item.name,
-        });
+    do {
+      const url = `https://catalog.roblox.com/v1/search/items?category=GamePass&creatorType=Universe&creatorTargetId=${universeId}&limit=30${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+      console.log("Consultando Gamepasses en:", url);
+      const { data } = await axios.get(url, { headers });
+
+      if (Array.isArray(data.items)) {
+        for (const item of data.items) {
+          gamepasses.push({
+            gamepassId: item.id,
+            gamepassName: item.name,
+          });
+        }
       }
-    }
+
+      cursor = data.nextPageCursor || null;
+      safetyCounter++;
+      if (safetyCounter > 20) break;
+      await delay(150);
+    } while (cursor);
   } catch (err) {
     console.error(`Error obteniendo gamepasses para universo ${universeId}:`, err.message);
   }
+
   return gamepasses;
 }
 
+// Endpoint principal
 app.get('/gamepasses/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
