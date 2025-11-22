@@ -9,52 +9,68 @@ app.use(express.json());
 // Endpoint principal
 app.get("/", (req, res) => res.send("Gamepass Creator API Running"));
 
-// Endpoint para obtener Gamepasses creados por un jugador
+// Función para obtener todos los games/places de un usuario
+async function getUserExperiences(userId) {
+  try {
+    const url = `https://games.roblox.com/v1/users/${userId}/experiences?limit=100`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.data || [];
+  } catch (err) {
+    console.error("Error obteniendo experiencias:", err);
+    return [];
+  }
+}
+
+// Función para obtener gamepasses de un juego
+async function getGamepasses(gameId) {
+  try {
+    const url = `https://games.roblox.com/v1/games/${gameId}/game-passes`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.data || [];
+  } catch (err) {
+    console.error(`Error obteniendo gamepasses del juego ${gameId}:`, err);
+    return [];
+  }
+}
+
 app.get("/creator-gamepasses", async (req, res) => {
   const userId = req.query.userId;
   if (!userId) return res.status(400).json({ error: "Falta userId" });
 
   try {
-    console.log(`🔹 Buscando juegos del jugador: ${userId}`);
+    console.log(`🔹 Buscando experiencias del jugador: ${userId}`);
+    const experiences = await getUserExperiences(userId);
 
-    // 1️⃣ Obtener juegos del jugador
-    const gamesUrl = `https://games.roblox.com/v1/users/${userId}/games?sortOrder=Asc&limit=100`;
-    const gamesData = await fetch(gamesUrl).then(r => r.json());
-
-    if (!gamesData.data || gamesData.data.length === 0) {
-      console.log("❌ El jugador no tiene juegos creados");
+    if (experiences.length === 0) {
+      console.log("❌ No se encontraron experiencias para este jugador");
       return res.json({ gamepasses: [] });
     }
 
     const allGamepasses = [];
 
-    // 2️⃣ Recorrer cada juego
-    for (const game of gamesData.data) {
-      console.log(`🔹 Revisando juego: ${game.name} (ID: ${game.id})`);
-
-      const gpUrl = `https://games.roblox.com/v1/games/${game.id}/game-passes`;
-      const gpData = await fetch(gpUrl).then(r => r.json());
-
-      if (!gpData.data || gpData.data.length === 0) {
-        console.log(`⚠️ Juego "${game.name}" no tiene Gamepasses`);
-        continue;
-      }
-
-      gpData.data.forEach(gp => {
-        allGamepasses.push({
-          gameId: game.id,
-          gameName: game.name,
-          gamepassId: gp.id,
-          gamepassName: gp.name
+    for (const exp of experiences) {
+      const places = exp.places || [];
+      for (const place of places) {
+        const gps = await getGamepasses(place.id);
+        gps.forEach(gp => {
+          allGamepasses.push({
+            experienceId: exp.id,
+            experienceName: exp.name,
+            gameId: place.id,
+            gameName: place.name,
+            gamepassId: gp.id,
+            gamepassName: gp.name
+          });
         });
-      });
+      }
     }
 
     console.log(`✅ Total Gamepasses encontrados: ${allGamepasses.length}`);
     res.json({ gamepasses: allGamepasses });
-
   } catch (err) {
-    console.error("❌ Error obteniendo Gamepasses:", err);
+    console.error("❌ Error general:", err);
     res.status(500).json({ error: "Error al obtener gamepasses" });
   }
 });
